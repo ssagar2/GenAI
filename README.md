@@ -1,160 +1,83 @@
-# Portfolio Optimizer
+# ML-Powered Portfolio Optimizer
 
-A modern, user-friendly portfolio optimization tool built with React. This application provides comprehensive features for stock selection, portfolio allocation, risk assessment, and performance visualization.
+A professional-grade portfolio optimization tool with React frontend and Flask backend, featuring machine learning predictions and real-time stock data.
 
 ## Features
 
-### 🎯 Stock Selection
-- Search and select from a curated list of popular stocks
-- Real-time stock price and performance data
-- Easy add/remove functionality with visual feedback
+- **ML-Powered Predictions**: Random Forest models for stock price forecasting
+- **Real-Time Data**: Yahoo Finance integration with fallback to mock data
+- **Risk-Based Optimization**: Dynamic portfolio allocation based on risk profiles
+- **Modern UI**: React frontend with Tailwind CSS
+- **Professional Backend**: Flask API with comprehensive error handling
 
-### 📊 Allocation Management
-- Interactive sliders for precise portfolio weight allocation
-- Real-time validation ensuring 100% allocation
-- Equal weight and reset functionality
-- Visual portfolio preview
+## Quick Start
 
-### 🛡️ Risk Assessment
-- Three risk profiles: Conservative, Moderate, Aggressive
-- Real-time portfolio risk analysis
-- Diversification metrics
-- Personalized risk recommendations
+### Backend Setup
 
-### 📈 Performance Charts
-- Interactive line charts for performance tracking
-- Pie charts for allocation visualization
-- Bar charts for sector analysis
-- Multiple chart types with smooth transitions
-
-### 📋 Portfolio Summary
-- Comprehensive portfolio metrics
-- Top holdings analysis
-- Sector allocation breakdown
-- Smart recommendations based on portfolio health
-
-## Technology Stack
-
-- **React 18** - Modern React with hooks
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Smooth animations and transitions
-- **Recharts** - Beautiful, responsive charts
-- **Lucide React** - Modern icon library
-
-## Getting Started
-
-### Prerequisites
-
-Make sure you have Node.js installed on your system. You can download it from [nodejs.org](https://nodejs.org/).
-
-### Installation
-
-1. Navigate to the project directory:
+1. **Navigate to backend directory:**
    ```bash
-   cd Users/swapn/Documents/portfolio-optimizer
+   cd backend
    ```
 
-2. Install dependencies:
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Start the backend server:**
+   ```bash
+   python start.py
+   ```
+   
+   The server will start at `http://localhost:5000` with relative path logging enabled.
+
+### Frontend Setup
+
+1. **Install Node.js dependencies:**
    ```bash
    npm install
    ```
 
-3. Start the development server:
+2. **Start the React development server:**
    ```bash
    npm start
    ```
-4. Open your browser and visit `http://localhost:3000`
+   
+   The frontend will be available at `http://localhost:3000`
 
-## Usage
+## API Endpoints
 
-### 1. Stock Selection
-- Use the search bar to find stocks by symbol or company name
-- Click on a stock to add it to your portfolio
-- Remove stocks by clicking the X button next to each stock
+- `GET /api/health` - Health check
+- `GET /api/search?q=<query>` - Search stocks
+- `GET /api/stock/<symbol>` - Get stock data
+- `POST /api/portfolio/metrics` - Calculate portfolio metrics
+- `POST /api/portfolio/optimize` - Optimize portfolio with ML
+- `POST /api/portfolio/performance` - Get performance data
 
-### 2. Portfolio Allocation
-- Adjust allocation percentages using the sliders
-- Use the number input for precise control
-- Ensure total allocation equals 100%
-- Use "Equal Weight" to distribute evenly
-- Use "Reset All" to clear allocations
+## ML Features
 
-### 3. Risk Assessment
-- Select your risk profile: Conservative, Moderate, or Aggressive
-- View real-time portfolio risk analysis
-- Check diversification metrics
-- Review personalized recommendations
-
-### 4. Performance Analysis
-- Switch between different chart types
-- View performance trends over time
-- Analyze sector allocations
-- Monitor portfolio metrics
-
-### 5. Portfolio Summary
-- Review comprehensive portfolio metrics
-- Check top holdings and their performance
-- Analyze sector diversification
-- Read smart recommendations
+- **Technical Indicators**: SMA, EMA, RSI, MACD, Bollinger Bands
+- **Price Prediction**: 30-day forward price predictions
+- **Risk Assessment**: Dynamic risk profile adjustments
+- **Portfolio Optimization**: Modern Portfolio Theory with ML enhancements
 
 ## Project Structure
 
 ```
-src/
-├── components/
-│   ├── StockSelector.js      # Stock search and selection
-│   ├── AllocationSliders.js  # Portfolio allocation controls
-│   ├── RiskAssessment.js     # Risk analysis and profiles
-│   ├── PerformanceCharts.js  # Interactive charts
-│   └── PortfolioSummary.js   # Portfolio metrics and summary
-├── App.js                    # Main application component
-├── index.js                  # Application entry point
-└── index.css                 # Global styles and Tailwind imports
+portfolio-optimizer/
+├── backend/
+│   ├── app.py              # Main Flask application
+│   ├── start.py            # Startup script with relative paths
+│   └── requirements.txt    # Python dependencies
+├── src/
+│   ├── components/         # React components
+│   └── services/          # API services
+└── README.md
 ```
 
-## Customization
+## Configuration
 
-### Adding New Stocks
-Edit the `availableStocks` array in `StockSelector.js` to add more stocks:
-
-```javascript
-const availableStocks = [
-  { symbol: 'NEW', name: 'New Company Inc.', price: 100.00, change: 1.5, sector: 'Technology' },
-  // Add more stocks here
-];
-```
-
-### Modifying Risk Profiles
-Update the `riskProfiles` array in `RiskAssessment.js` to customize risk profiles:
-
-```javascript
-const riskProfiles = [
-  {
-    id: 'custom',
-    name: 'Custom Profile',
-    description: 'Your custom risk profile',
-    volatility: '5-15%',
-    expectedReturn: '6-9%'
-  }
-];
-```
-
-### Styling
-The application uses Tailwind CSS for styling. You can customize colors, spacing, and other design elements by modifying the Tailwind classes or extending the configuration in `tailwind.config.js`.
-
-## Performance Features
-
-- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
-- **Smooth Animations**: Framer Motion provides fluid transitions and interactions
-- **Real-time Updates**: All components update instantly as you make changes
-- **Interactive Charts**: Recharts provides beautiful, responsive data visualization
-
-## Browser Support
-
-- Chrome (recommended)
-- Firefox
-- Safari
-- Edge
+The backend is configured to use relative paths in logs, making it suitable for deployment and sharing. The Flask development server will show relative file paths instead of absolute paths when files are modified.
 
 ## Contributing
 
@@ -166,7 +89,7 @@ The application uses Tailwind CSS for styling. You can customize colors, spacing
 
 ## License
 
-This project is open source and available under the MIT License.
+MIT License - see LICENSE file for details.
 
 ## Support
 
