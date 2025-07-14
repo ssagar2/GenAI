@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Return vs Expected Return</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .metric-card { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
+        .total-return { border-left: 4px solid #28a745; }
+        .expected-return { border-left: 4px solid #007bff; }
+        .risk-profile { display: inline-block; padding: 8px 16px; border-radius: 20px; margin: 5px; cursor: pointer; }
+        .conservative { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .moderate { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .aggressive { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .active { font-weight: bold; transform: scale(1.05); }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .explanation { background: #e7f3ff; padding: 15px; border-radius: 4px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Total Return vs Expected Return</h1>
+        
+        <div class="card">
+            <h2>Key Differences</h2>
+            <div class="comparison">
+                <div class="metric-card total-return">
+                    <h3>Total Return</h3>
+                    <p><strong>What it is:</strong> Current performance based on recent price changes</p>
+                    <p><strong>Timeframe:</strong> Recent past performance</p>
+                    <p><strong>Calculation:</strong> Weighted average of current stock returns</p>
+                    <p><strong>Use:</strong> Shows how your portfolio is performing right now</p>
+                </div>
+                <div class="metric-card expected-return">
+                    <h3>Expected Return</h3>
+                    <p><strong>What it is:</strong> Forward-looking projection based on risk and market factors</p>
+                    <p><strong>Timeframe:</strong> Annual projection</p>
+                    <p><strong>Calculation:</strong> Risk-free rate + (Beta × Market Risk Premium) + Risk Profile Adjustment</p>
+                    <p><strong>Use:</strong> Shows potential future performance</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Risk Profile Impact</h2>
+            <div>
+                <span class="risk-profile conservative" onclick="setRiskProfile('conservative')" id="conservative">Conservative</span>
+                <span class="risk-profile moderate active" onclick="setRiskProfile('moderate')" id="moderate">Moderate</span>
+                <span class="risk-profile aggressive" onclick="setRiskProfile('aggressive')" id="aggressive">Aggressive</span>
+            </div>
+            
+            <div class="explanation">
+                <h4>How Risk Profile Affects Expected Return:</h4>
+                <ul>
+                    <li><strong>Conservative:</strong> Expected return reduced by 20% (more realistic expectations)</li>
+                    <li><strong>Moderate:</strong> Standard calculation (balanced expectations)</li>
+                    <li><strong>Aggressive:</strong> Expected return increased by 20% (optimistic projections)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Live Example</h2>
+            <p>Test with a portfolio of AAPL (60%) and MSFT (40%):</p>
+            <button onclick="testPortfolio()">Calculate Returns</button>
+            <div id="results"></div>
+        </div>
+
+        <div class="card">
+            <h2>Formula Breakdown</h2>
+            <div class="explanation">
+                <h4>Expected Return Formula:</h4>
+                <p><strong>Expected Return = Risk-Free Rate + (Beta × Market Risk Premium) + Risk Profile Adjustment</strong></p>
+                <ul>
+                    <li><strong>Risk-Free Rate:</strong> 2% (government bond yield)</li>
+                    <li><strong>Market Risk Premium:</strong> 6% (historical market return minus risk-free rate)</li>
+                    <li><strong>Beta:</strong> Portfolio's sensitivity to market movements</li>
+                    <li><strong>Risk Profile Adjustment:</strong> Conservative (×0.8), Moderate (×1.0), Aggressive (×1.2)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentRiskProfile = 'moderate';
+        const testStocks = [
+            { symbol: 'AAPL', name: 'Apple Inc.', current_price: 175.50, change: 2.5, volatility: 25.2, beta: 1.1, sector: 'Technology' },
+            { symbol: 'MSFT', name: 'Microsoft Corporation', current_price: 380.25, change: 1.8, volatility: 22.8, beta: 0.9, sector: 'Technology' }
+        ];
+        const testAllocations = { 'AAPL': 60, 'MSFT': 40 };
+
+        function setRiskProfile(profile) {
+            currentRiskProfile = profile;
+            
+            // Update active state
+            document.querySelectorAll('.risk-profile').forEach(el => el.classList.remove('active'));
+            document.getElementById(profile).classList.add('active');
+        }
+
+        async function testPortfolio() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Calculating...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/portfolio/metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stocks: testStocks,
+                        allocations: testAllocations,
+                        risk_profile: currentRiskProfile
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Calculate the difference
+                const difference = data.expected_return - data.total_return;
+                const differenceText = difference >= 0 ? `+${difference.toFixed(2)}%` : `${difference.toFixed(2)}%`;
+                const differenceColor = difference >= 0 ? '#28a745' : '#dc3545';
+                
+                resultsDiv.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                        <h4>Portfolio Results:</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 15px 0;">
+                            <div style="background: #d4edda; padding: 15px; border-radius: 4px;">
+                                <h5>Total Return (Current)</h5>
+                                <p style="font-size: 24px; font-weight: bold; color: ${data.total_return >= 0 ? '#28a745' : '#dc3545'};">
+                                    ${data.total_return >= 0 ? '+' : ''}${data.total_return}%
+                                </p>
+                                <p style="font-size: 12px; color: #666;">Based on recent price changes</p>
+                            </div>
+                            <div style="background: #d1ecf1; padding: 15px; border-radius: 4px;">
+                                <h5>Expected Return (Annual)</h5>
+                                <p style="font-size: 24px; font-weight: bold; color: #007bff;">
+                                    ${data.expected_return}%
+                                </p>
+                                <p style="font-size: 12px; color: #666;">Forward-looking projection</p>
+                            </div>
+                        </div>
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                            <h5>Difference Analysis:</h5>
+                            <p><strong>Difference:</strong> <span style="color: ${differenceColor}; font-weight: bold;">${differenceText}</span></p>
+                            <p><strong>Risk Profile:</strong> ${currentRiskProfile.charAt(0).toUpperCase() + currentRiskProfile.slice(1)}</p>
+                            <p><strong>Volatility:</strong> ${data.volatility}%</p>
+                            <p><strong>Sharpe Ratio:</strong> ${data.sharpe_ratio}</p>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <h4>❌ Error:</h4>
+                        <p>${error.message}</p>
+                        <p><small>Make sure the backend is running on http://localhost:5000</small></p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        setRiskProfile('moderate');
+    </script>
+</body>
+</html> 

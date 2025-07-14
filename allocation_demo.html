@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Profile Allocation Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .risk-profile { display: inline-block; padding: 8px 16px; border-radius: 20px; margin: 5px; cursor: pointer; }
+        .conservative { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .moderate { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .aggressive { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .active { font-weight: bold; transform: scale(1.05); }
+        .allocation-bar { background: #e9ecef; height: 20px; border-radius: 10px; margin: 5px 0; overflow: hidden; }
+        .allocation-fill { height: 100%; transition: width 0.5s ease; }
+        .conservative-fill { background: linear-gradient(90deg, #28a745, #20c997); }
+        .moderate-fill { background: linear-gradient(90deg, #007bff, #6f42c1); }
+        .aggressive-fill { background: linear-gradient(90deg, #fd7e14, #dc3545); }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .comparison-card { background: white; padding: 15px; border-radius: 8px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Risk Profile Allocation Impact</h1>
+        
+        <div class="card">
+            <h2>How Risk Profiles Change Allocations</h2>
+            <div class="comparison">
+                <div class="comparison-card">
+                    <h3>Conservative</h3>
+                    <p><strong>Strategy:</strong> Equal Weight</p>
+                    <p><strong>Goal:</strong> Minimize risk through diversification</p>
+                    <p><small>All stocks get equal allocation regardless of volatility</small></p>
+                </div>
+                <div class="comparison-card">
+                    <h3>Moderate</h3>
+                    <p><strong>Strategy:</strong> Equal Weight</p>
+                    <p><strong>Goal:</strong> Balanced approach</p>
+                    <p><small>Same as conservative for simplicity</small></p>
+                </div>
+                <div class="comparison-card">
+                    <h3>Aggressive</h3>
+                    <p><strong>Strategy:</strong> Volatility-Weighted</p>
+                    <p><strong>Goal:</strong> Maximize potential returns</p>
+                    <p><small>Higher volatility stocks get larger allocations</small></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Select Risk Profile</h2>
+            <div>
+                <span class="risk-profile conservative" onclick="setRiskProfile('conservative')" id="conservative">Conservative</span>
+                <span class="risk-profile moderate active" onclick="setRiskProfile('moderate')" id="moderate">Moderate</span>
+                <span class="risk-profile aggressive" onclick="setRiskProfile('aggressive')" id="aggressive">Aggressive</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Portfolio Allocations</h2>
+            <p>Test portfolio: AAPL (60% volatility) + MSFT (40% volatility) + GOOGL (50% volatility)</p>
+            <button onclick="testAllocations()">Calculate Allocations</button>
+            <div id="allocation-results"></div>
+        </div>
+
+        <div class="card">
+            <h2>Live Demo</h2>
+            <p>Test with real backend API:</p>
+            <button onclick="testWithBackend()">Test with Backend</button>
+            <div id="backend-results"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentRiskProfile = 'moderate';
+        const testStocks = [
+            { symbol: 'AAPL', name: 'Apple Inc.', volatility: 25.2 },
+            { symbol: 'MSFT', name: 'Microsoft Corporation', volatility: 22.8 },
+            { symbol: 'GOOGL', name: 'Alphabet Inc.', volatility: 28.5 }
+        ];
+
+        function setRiskProfile(profile) {
+            currentRiskProfile = profile;
+            
+            // Update active state
+            document.querySelectorAll('.risk-profile').forEach(el => el.classList.remove('active'));
+            document.getElementById(profile).classList.add('active');
+        }
+
+        function calculateAllocations(stocks, riskProfile) {
+            if (riskProfile === 'conservative' || riskProfile === 'moderate') {
+                // Equal weight allocation
+                const equalWeight = 100 / stocks.length;
+                const allocations = {};
+                stocks.forEach(stock => {
+                    allocations[stock.symbol] = equalWeight;
+                });
+                return allocations;
+            } else if (riskProfile === 'aggressive') {
+                // Volatility-weighted allocation
+                const totalVolatility = stocks.reduce((sum, stock) => sum + stock.volatility, 0);
+                const allocations = {};
+                stocks.forEach(stock => {
+                    allocations[stock.symbol] = (stock.volatility / totalVolatility) * 100;
+                });
+                return allocations;
+            }
+        }
+
+        function testAllocations() {
+            const allocations = calculateAllocations(testStocks, currentRiskProfile);
+            const resultsDiv = document.getElementById('allocation-results');
+            
+            let html = '<div style="margin-top: 15px;">';
+            html += '<h4>Allocation Results:</h4>';
+            
+            testStocks.forEach(stock => {
+                const allocation = allocations[stock.symbol];
+                const fillClass = currentRiskProfile === 'conservative' ? 'conservative-fill' : 
+                                currentRiskProfile === 'moderate' ? 'moderate-fill' : 'aggressive-fill';
+                
+                html += `
+                    <div style="margin: 10px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span><strong>${stock.symbol}</strong> (${stock.name})</span>
+                            <span><strong>${allocation.toFixed(1)}%</strong></span>
+                        </div>
+                        <div class="allocation-bar">
+                            <div class="allocation-fill ${fillClass}" style="width: ${allocation}%"></div>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            Volatility: ${stock.volatility}%
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        async function testWithBackend() {
+            const resultsDiv = document.getElementById('backend-results');
+            resultsDiv.innerHTML = '<p>Testing with backend API...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/portfolio/optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stocks: testStocks,
+                        risk_profile: currentRiskProfile
+                    })
+                });
+                
+                const data = await response.json();
+                
+                let html = '<div style="background: #d4edda; padding: 15px; border-radius: 4px; margin-top: 15px;">';
+                html += '<h4>✅ Backend Optimization Results:</h4>';
+                
+                testStocks.forEach(stock => {
+                    const allocation = data.allocations[stock.symbol];
+                    html += `<p><strong>${stock.symbol}:</strong> ${allocation.toFixed(1)}%</p>`;
+                });
+                
+                html += `<p><strong>Risk Profile:</strong> ${currentRiskProfile}</p>`;
+                html += '</div>';
+                
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <h4>❌ Error:</h4>
+                        <p>${error.message}</p>
+                        <p><small>Make sure the backend is running on http://localhost:5000</small></p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        setRiskProfile('moderate');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Profile Impact Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .risk-profile { display: inline-block; padding: 8px 16px; border-radius: 20px; margin: 5px; cursor: pointer; }
+        .conservative { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .moderate { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .aggressive { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .active { font-weight: bold; transform: scale(1.05); }
+        .metric { display: flex; justify-content: space-between; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; }
+        .metric-value { font-weight: bold; }
+        .comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .comparison-card { background: white; padding: 15px; border-radius: 8px; text-align: center; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Risk Profile Impact on Portfolio</h1>
+        
+        <div class="card">
+            <h2>Select Risk Profile</h2>
+            <div>
+                <span class="risk-profile conservative" onclick="setRiskProfile('conservative')" id="conservative">Conservative</span>
+                <span class="risk-profile moderate active" onclick="setRiskProfile('moderate')" id="moderate">Moderate</span>
+                <span class="risk-profile aggressive" onclick="setRiskProfile('aggressive')" id="aggressive">Aggressive</span>
+            </div>
+            <p><small>Click on a risk profile to see how it affects your portfolio metrics</small></p>
+        </div>
+
+        <div class="card">
+            <h2>Portfolio Metrics</h2>
+            <div id="metrics">
+                <div class="metric">
+                    <span>Expected Return:</span>
+                    <span class="metric-value" id="expected-return">0.00%</span>
+                </div>
+                <div class="metric">
+                    <span>Volatility:</span>
+                    <span class="metric-value" id="volatility">0.00%</span>
+                </div>
+                <div class="metric">
+                    <span>Sharpe Ratio:</span>
+                    <span class="metric-value" id="sharpe-ratio">0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Risk Profile Comparison</h2>
+            <div class="comparison">
+                <div class="comparison-card">
+                    <h3>Conservative</h3>
+                    <p><strong>Return Multiplier:</strong> 0.8x</p>
+                    <p><strong>Volatility Multiplier:</strong> 0.7x</p>
+                    <p><small>Lower risk, lower returns, more stable</small></p>
+                </div>
+                <div class="comparison-card">
+                    <h3>Moderate</h3>
+                    <p><strong>Return Multiplier:</strong> 1.0x</p>
+                    <p><strong>Volatility Multiplier:</strong> 1.0x</p>
+                    <p><small>Balanced approach</small></p>
+                </div>
+                <div class="comparison-card">
+                    <h3>Aggressive</h3>
+                    <p><strong>Return Multiplier:</strong> 1.3x</p>
+                    <p><strong>Volatility Multiplier:</strong> 1.4x</p>
+                    <p><small>Higher risk, higher potential returns</small></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Test with Real Data</h2>
+            <button onclick="testWithRealData()">Test Portfolio with AAPL + MSFT</button>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentRiskProfile = 'moderate';
+        const testStocks = [
+            { symbol: 'AAPL', name: 'Apple Inc.', current_price: 175.50, change: 2.5, volatility: 25.2, beta: 1.1, sector: 'Technology' },
+            { symbol: 'MSFT', name: 'Microsoft Corporation', current_price: 380.25, change: 1.8, volatility: 22.8, beta: 0.9, sector: 'Technology' }
+        ];
+        const testAllocations = { 'AAPL': 60, 'MSFT': 40 };
+
+        function setRiskProfile(profile) {
+            currentRiskProfile = profile;
+            
+            // Update active state
+            document.querySelectorAll('.risk-profile').forEach(el => el.classList.remove('active'));
+            document.getElementById(profile).classList.add('active');
+            
+            // Update metrics
+            updateMetrics();
+        }
+
+        function updateMetrics() {
+            const riskAdjustments = {
+                'conservative': { return_multiplier: 0.8, volatility_multiplier: 0.7 },
+                'moderate': { return_multiplier: 1.0, volatility_multiplier: 1.0 },
+                'aggressive': { return_multiplier: 1.3, volatility_multiplier: 1.4 }
+            };
+            
+            const adjustment = riskAdjustments[currentRiskProfile];
+            
+            // Calculate weighted metrics
+            let totalReturn = 0;
+            let totalVolatility = 0;
+            
+            testStocks.forEach(stock => {
+                const allocation = testAllocations[stock.symbol] || 0;
+                const adjustedChange = stock.change * adjustment.return_multiplier;
+                const adjustedVolatility = stock.volatility * adjustment.volatility_multiplier;
+                
+                totalReturn += (allocation / 100) * adjustedChange;
+                totalVolatility += (allocation / 100) * adjustedVolatility;
+            });
+            
+            // Calculate Sharpe ratio
+            const riskFreeRate = 2.0;
+            const sharpeRatio = (totalReturn - riskFreeRate) / totalVolatility;
+            
+            // Update display
+            document.getElementById('expected-return').textContent = totalReturn.toFixed(2) + '%';
+            document.getElementById('volatility').textContent = totalVolatility.toFixed(2) + '%';
+            document.getElementById('sharpe-ratio').textContent = sharpeRatio.toFixed(2);
+        }
+
+        async function testWithRealData() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<p>Testing with backend API...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/portfolio/metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stocks: testStocks,
+                        allocations: testAllocations,
+                        risk_profile: currentRiskProfile
+                    })
+                });
+                
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div style="background: #d4edda; padding: 15px; border-radius: 4px; margin-top: 10px;">
+                        <h4>✅ Backend API Results:</h4>
+                        <p><strong>Expected Return:</strong> ${data.expected_return}%</p>
+                        <p><strong>Volatility:</strong> ${data.volatility}%</p>
+                        <p><strong>Sharpe Ratio:</strong> ${data.sharpe_ratio}</p>
+                        <p><strong>Risk Profile:</strong> ${data.risk_profile}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 4px; margin-top: 10px;">
+                        <h4>❌ Error:</h4>
+                        <p>${error.message}</p>
+                        <p><small>Make sure the backend is running on http://localhost:5000</small></p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        updateMetrics();
+    </script>
+</body>
+</html> 

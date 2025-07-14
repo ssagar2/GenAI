@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Portfolio Optimizer Backend API Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Health Check</h3>
+        <button onclick="testHealth()">Test Health</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Search Stocks</h3>
+        <input type="text" id="search-input" placeholder="Enter stock symbol (e.g., AAPL)" value="AAPL">
+        <button onclick="testSearch()">Search</button>
+        <div id="search-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Get Stock Data</h3>
+        <input type="text" id="stock-input" placeholder="Enter stock symbol" value="AAPL">
+        <button onclick="testStockData()">Get Data</button>
+        <div id="stock-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. Portfolio Metrics</h3>
+        <button onclick="testPortfolioMetrics()">Calculate Metrics</button>
+        <div id="metrics-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function makeRequest(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const data = await makeRequest('/health');
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Health Check Passed</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Health Check Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testSearch() {
+            const resultDiv = document.getElementById('search-result');
+            const query = document.getElementById('search-input').value;
+            
+            if (!query) {
+                resultDiv.innerHTML = '<div class="error"><p>Please enter a search query</p></div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Searching...</p>';
+            
+            try {
+                const data = await makeRequest(`/search?q=${encodeURIComponent(query)}`);
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Search Results</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Search Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testStockData() {
+            const resultDiv = document.getElementById('stock-result');
+            const symbol = document.getElementById('stock-input').value;
+            
+            if (!symbol) {
+                resultDiv.innerHTML = '<div class="error"><p>Please enter a stock symbol</p></div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Fetching stock data...</p>';
+            
+            try {
+                const data = await makeRequest(`/stock/${symbol}`);
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Stock Data Retrieved</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Stock Data Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testPortfolioMetrics() {
+            const resultDiv = document.getElementById('metrics-result');
+            resultDiv.innerHTML = '<p>Calculating portfolio metrics...</p>';
+            
+            try {
+                const testData = {
+                    stocks: [
+                        {
+                            symbol: 'AAPL',
+                            name: 'Apple Inc.',
+                            current_price: 175.50,
+                            change: 2.5,
+                            volatility: 25.2,
+                            beta: 1.1,
+                            sector: 'Technology'
+                        },
+                        {
+                            symbol: 'MSFT',
+                            name: 'Microsoft Corporation',
+                            current_price: 380.25,
+                            change: 1.8,
+                            volatility: 22.8,
+                            beta: 0.9,
+                            sector: 'Technology'
+                        }
+                    ],
+                    allocations: {
+                        'AAPL': 60,
+                        'MSFT': 40
+                    }
+                };
+                
+                const data = await makeRequest('/portfolio/metrics', {
+                    method: 'POST',
+                    body: JSON.stringify(testData)
+                });
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Portfolio Metrics Calculated</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Portfolio Metrics Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run health check on page load
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html> 
