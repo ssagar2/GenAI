@@ -47,12 +47,22 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
   useEffect(() => {
     setMlResults(null);
     setOptError(null);
+    setIsOptimizing(false); // Reset optimization state
   }, [selectedStocks]);
 
-  const handleOptimize = async () => {
-    setIsOptimizing(true);
+  const resetOptimizationState = () => {
+    setIsOptimizing(false);
     setOptError(null);
-    setMlResults(null); // Clear previous results
+    setMlResults(null);
+  };
+
+  const handleOptimize = async () => {
+    // Prevent multiple simultaneous requests
+    if (isOptimizing) return;
+    
+    // Reset state before starting
+    resetOptimizationState();
+    setIsOptimizing(true);
     
     // Add timeout to prevent button from getting stuck
     const timeoutId = setTimeout(() => {
@@ -61,14 +71,16 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
     }, 30000); // 30 second timeout
     
     try {
+      console.log('Starting optimization for stocks:', selectedStocks.map(s => s.symbol));
       const { allocations: newAllocations, mlPredictions, optimizationMethod } = await apiService.optimizePortfolio(selectedStocks, riskProfile);
       clearTimeout(timeoutId);
+      console.log('Optimization successful:', newAllocations);
       onOptimize(newAllocations);
       setMlResults({ mlPredictions, optimizationMethod });
     } catch (err) {
       clearTimeout(timeoutId);
-      setOptError('Failed to optimize portfolio.');
       console.error('Optimization error:', err);
+      setOptError('Failed to optimize portfolio. Please try again.');
     } finally {
       setIsOptimizing(false);
     }
@@ -163,9 +175,23 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
         <button
           onClick={handleOptimize}
           disabled={selectedStocks.length === 0 || isOptimizing}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`px-4 py-2 rounded-md font-semibold transition-all duration-200 ${
+            selectedStocks.length === 0 || isOptimizing
+              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+          }`}
         >
-          {isOptimizing ? 'Optimizing...' : 'Optimize Portfolio'}
+          {isOptimizing ? (
+            <span className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Optimizing...
+            </span>
+          ) : (
+            'Optimize Portfolio'
+          )}
         </button>
         {optError && <div className="text-red-500 text-xs mt-2">{optError}</div>}
         {selectedStocks.length === 0 && (
