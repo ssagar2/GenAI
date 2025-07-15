@@ -43,16 +43,32 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
     setOptError(null);
   }, [riskProfile]);
 
+  // Clear ML results when stocks change
+  useEffect(() => {
+    setMlResults(null);
+    setOptError(null);
+  }, [selectedStocks]);
+
   const handleOptimize = async () => {
     setIsOptimizing(true);
     setOptError(null);
     setMlResults(null); // Clear previous results
+    
+    // Add timeout to prevent button from getting stuck
+    const timeoutId = setTimeout(() => {
+      setIsOptimizing(false);
+      setOptError('Request timed out. Please try again.');
+    }, 30000); // 30 second timeout
+    
     try {
       const { allocations: newAllocations, mlPredictions, optimizationMethod } = await apiService.optimizePortfolio(selectedStocks, riskProfile);
+      clearTimeout(timeoutId);
       onOptimize(newAllocations);
       setMlResults({ mlPredictions, optimizationMethod });
     } catch (err) {
+      clearTimeout(timeoutId);
       setOptError('Failed to optimize portfolio.');
+      console.error('Optimization error:', err);
     } finally {
       setIsOptimizing(false);
     }
@@ -147,11 +163,14 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
         <button
           onClick={handleOptimize}
           disabled={selectedStocks.length === 0 || isOptimizing}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isOptimizing ? 'Optimizing...' : 'Optimize Portfolio'}
         </button>
         {optError && <div className="text-red-500 text-xs mt-2">{optError}</div>}
+        {selectedStocks.length === 0 && (
+          <div className="text-gray-500 text-xs mt-2">Select stocks to enable optimization</div>
+        )}
       </div>
 
       {/* ML Results */}
