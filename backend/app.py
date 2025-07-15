@@ -595,6 +595,7 @@ def get_portfolio_performance():
                 import random
                 random.seed(hash(symbol + month))  # Consistent randomness for same stock/month
                 change_percent = random.uniform(-0.12, 0.18)  # -12% to +18% for more realistic range
+                # Store the actual stock price (not portfolio contribution)
                 month_data[symbol] = round(base_price * (1 + change_percent), 2)
             
             # Calculate portfolio total based on allocations
