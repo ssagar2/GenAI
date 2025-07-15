@@ -12,6 +12,9 @@ function App() {
   const [allocations, setAllocations] = useState({});
   const [riskProfile, setRiskProfile] = useState('moderate');
 
+  // Log on every render
+  console.log('App render:', { selectedStocks, allocations, riskProfile });
+
   const handleStockSelection = (stocks) => {
     setSelectedStocks(stocks);
     // Initialize allocations for new stocks
@@ -32,6 +35,7 @@ function App() {
   };
 
   const handleOptimize = (optimizedAllocations) => {
+    console.log('handleOptimize called with:', optimizedAllocations);
     setAllocations(optimizedAllocations);
   };
 
