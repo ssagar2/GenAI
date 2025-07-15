@@ -599,11 +599,14 @@ def get_portfolio_performance():
             
             # Calculate portfolio total based on allocations
             total_value = 0
+            portfolio_value = 10000  # Base portfolio value
+            
             for stock in stocks:
                 symbol = stock['symbol']
                 allocation = allocations.get(symbol, 0) / 100
-                stock_value = month_data[symbol] * allocation * 100  # Assuming 100 shares per stock
-                total_value += stock_value
+                # Calculate stock contribution to portfolio
+                stock_contribution = month_data[symbol] * allocation * portfolio_value / stock.get('current_price', 100)
+                total_value += stock_contribution
             
             month_data['total'] = round(total_value, 2)
             performance_data.append(month_data)

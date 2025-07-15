@@ -23,6 +23,10 @@ if __name__ == '__main__':
     os.environ['FLASK_ENV'] = 'development'
     os.environ['FLASK_DEBUG'] = '1'
     
+    # Suppress werkzeug logging to avoid absolute path display
+    import logging
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+    
     # Run with reduced verbosity to avoid absolute path display
     app.run(
         debug=True, 
