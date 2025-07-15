@@ -57,8 +57,15 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
   };
 
   const handleOptimize = async () => {
+    console.log('Button clicked! Current state:', { isOptimizing, selectedStocks: selectedStocks.length });
+    
     // Prevent multiple simultaneous requests
-    if (isOptimizing) return;
+    if (isOptimizing) {
+      console.log('Already optimizing, ignoring click');
+      return;
+    }
+    
+    console.log('Starting optimization process...');
     
     // Reset state before starting
     resetOptimizationState();
@@ -66,6 +73,7 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
     
     // Add timeout to prevent button from getting stuck
     const timeoutId = setTimeout(() => {
+      console.log('Request timed out');
       setIsOptimizing(false);
       setOptError('Request timed out. Please try again.');
     }, 30000); // 30 second timeout
@@ -82,6 +90,7 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
       console.error('Optimization error:', err);
       setOptError('Failed to optimize portfolio. Please try again.');
     } finally {
+      console.log('Setting isOptimizing to false');
       setIsOptimizing(false);
     }
   };
@@ -171,7 +180,7 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
       </div>
 
       {/* Optimize Button */}
-      <div className="pt-2">
+      <div className="pt-2 space-y-2">
         <button
           onClick={handleOptimize}
           disabled={selectedStocks.length === 0 || isOptimizing}
@@ -193,6 +202,20 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
             'Optimize Portfolio'
           )}
         </button>
+        
+        {/* Debug button to test state */}
+        <button
+          onClick={() => {
+            console.log('Debug: Current state:', { isOptimizing, selectedStocks: selectedStocks.length, optError });
+            setOptError(null);
+            setIsOptimizing(false);
+            setMlResults(null);
+          }}
+          className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
+        >
+          Reset State (Debug)
+        </button>
+        
         {optError && <div className="text-red-500 text-xs mt-2">{optError}</div>}
         {selectedStocks.length === 0 && (
           <div className="text-gray-500 text-xs mt-2">Select stocks to enable optimization</div>
