@@ -46,7 +46,7 @@ const PortfolioSummary = ({ selectedStocks, allocations, riskProfile }) => {
 
   // Update metrics when stocks, allocations, or risk profile changes
   useEffect(() => {
-    calculateMetrics();
+      calculateMetrics();
   }, [selectedStocks.length, JSON.stringify(allocations), riskProfile]);
 
   const getRiskProfileColor = (profile) => {

@@ -116,6 +116,57 @@ class ApiService {
     };
   }
 
+  // Monte Carlo portfolio optimization
+  async monteCarloOptimize(symbols, riskProfile = 'moderate', nSimulations = 1000) {
+    try {
+      const result = await this.apiCall('/portfolio/monte-carlo/optimize', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          symbols, 
+          risk_profile: riskProfile, 
+          n_simulations: nSimulations 
+        })
+      });
+      
+      return {
+        success: result.success,
+        optimizationMethod: 'Monte Carlo Simulation',
+        riskProfile: result.risk_profile,
+        simulationStats: result.simulation_stats,
+        optimalPortfolio: result.optimal_portfolio,
+        alternativePortfolios: result.alternative_portfolios,
+        efficientFrontierData: result.efficient_frontier_data
+      };
+    } catch (error) {
+      console.error('Monte Carlo optimization failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Get Monte Carlo statistics
+  async getMonteCarloStats(symbols, nSimulations = 1000) {
+    try {
+      const result = await this.apiCall('/portfolio/monte-carlo/stats', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          symbols, 
+          n_simulations: nSimulations 
+        })
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Monte Carlo stats failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Get portfolio performance data
   async getPortfolioPerformance(stocks, allocations) {
     const cacheKey = `performance_${JSON.stringify({ stocks: stocks.map(s => s.symbol), allocations })}`;

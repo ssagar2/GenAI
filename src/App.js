@@ -1,30 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import StockSelector from './components/StockSelector';
 import AllocationSliders from './components/AllocationSliders';
 import RiskAssessment from './components/RiskAssessment';
 import PerformanceCharts from './components/PerformanceCharts';
 import PortfolioSummary from './components/PortfolioSummary';
-import { TrendingUp, PieChart, Shield, BarChart3, Target } from 'lucide-react';
+import { TrendingUp, PieChart, Shield, BarChart3, Target, Loader2 } from 'lucide-react';
+import apiService from './services/apiService';
 
 function App() {
   const [selectedStocks, setSelectedStocks] = useState([]);
   const [allocations, setAllocations] = useState({});
   const [riskProfile, setRiskProfile] = useState('moderate');
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationMethod, setOptimizationMethod] = useState('');
+  const [error, setError] = useState(null);
 
-  // Log on every render
-  console.log('App render:', { selectedStocks, allocations, riskProfile });
+  // Run Monte Carlo optimization when stocks or risk profile changes
+  useEffect(() => {
+    if (selectedStocks.length > 0) {
+      runMonteCarloOptimization();
+    }
+  }, [selectedStocks, riskProfile]);
+
+  const runMonteCarloOptimization = async () => {
+    if (selectedStocks.length === 0) return;
+
+    setIsOptimizing(true);
+    setError(null);
+
+    try {
+      // Use the existing portfolio optimization endpoint with Monte Carlo integration
+      const result = await apiService.optimizePortfolio(
+        selectedStocks,
+        riskProfile,
+        10000
+      );
+
+      if (result.allocations) {
+        setAllocations(result.allocations);
+        setOptimizationMethod(result.optimizationMethod || 'Monte Carlo');
+      } else {
+        // Fallback to equal weight allocation
+        const equalAllocation = 100 / selectedStocks.length;
+        const fallbackAllocations = {};
+        selectedStocks.forEach(stock => {
+          fallbackAllocations[stock.symbol] = equalAllocation;
+        });
+        setAllocations(fallbackAllocations);
+        setOptimizationMethod('Equal Weight (Fallback)');
+      }
+    } catch (error) {
+      console.error('Monte Carlo optimization failed:', error);
+      setError('Failed to optimize portfolio. Using equal weight allocation.');
+      
+      // Fallback to equal weight allocation
+      const equalAllocation = 100 / selectedStocks.length;
+      const fallbackAllocations = {};
+      selectedStocks.forEach(stock => {
+        fallbackAllocations[stock.symbol] = equalAllocation;
+      });
+      setAllocations(fallbackAllocations);
+      setOptimizationMethod('Equal Weight (Fallback)');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
 
   const handleStockSelection = (stocks) => {
     setSelectedStocks(stocks);
-    // Initialize allocations for new stocks
-    const newAllocations = {};
-    stocks.forEach(stock => {
-      if (!allocations[stock.symbol]) {
-        newAllocations[stock.symbol] = 100 / stocks.length;
-      }
-    });
-    setAllocations({ ...allocations, ...newAllocations });
   };
 
   const handleAllocationChange = (symbol, value) => {
@@ -32,11 +76,6 @@ function App() {
       ...prev,
       [symbol]: value
     }));
-  };
-
-  const handleOptimize = (optimizedAllocations) => {
-    console.log('handleOptimize called with:', optimizedAllocations);
-    setAllocations(optimizedAllocations);
   };
 
   return (
@@ -52,7 +91,7 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-900">Portfolio Optimizer</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">Modern Portfolio Management</span>
+              <span className="text-sm text-gray-500">Monte Carlo Portfolio Management</span>
             </div>
           </div>
         </div>
@@ -85,10 +124,27 @@ function App() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="bg-white rounded-xl shadow-lg p-6"
             >
-              <div className="flex items-center space-x-2 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
                 <PieChart className="h-5 w-5 text-green-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Allocation</h2>
+                </div>
+                {isOptimizing && (
+                  <div className="flex items-center space-x-2 text-sm text-blue-600">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Optimizing...</span>
+                  </div>
+                )}
               </div>
+              
+              {optimizationMethod && (
+                <div className="mb-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-700">
+                    <strong>Method:</strong> {optimizationMethod}
+                  </p>
+                </div>
+              )}
+              
               <AllocationSliders
                 selectedStocks={selectedStocks}
                 allocations={allocations}
@@ -111,7 +167,6 @@ function App() {
                 onRiskChange={setRiskProfile}
                 selectedStocks={selectedStocks}
                 allocations={allocations}
-                onOptimize={handleOptimize}
               />
             </motion.div>
           </div>
@@ -141,6 +196,10 @@ function App() {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="bg-white rounded-xl shadow-lg p-6"
             >
+              <div className="flex items-center space-x-2 mb-4">
+                <TrendingUp className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Portfolio Summary</h2>
+              </div>
               <PortfolioSummary
                 selectedStocks={selectedStocks}
                 allocations={allocations}

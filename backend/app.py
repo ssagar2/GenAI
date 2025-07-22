@@ -9,6 +9,8 @@ from typing import List, Dict, Any
 import logging
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
+from scipy.optimize import minimize
+from scipy.stats import norm
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,6 +23,15 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Import Monte Carlo optimizer
+try:
+    from monte_carlo_optimizer import MonteCarloOptimizer
+    from monte_carlo_api import monte_carlo_api, create_monte_carlo_routes
+    MONTE_CARLO_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Monte Carlo optimizer not available: {e}")
+    MONTE_CARLO_AVAILABLE = False
 
 app = Flask(__name__)
 CORS(app)
@@ -93,6 +104,42 @@ MOCK_STOCKS = {
         'beta': 1.8
     }
 }
+
+def monte_carlo_optimization():
+    """Monte Carlo simulation for portfolio optimization"""
+    try:
+        # This is a simplified Monte Carlo implementation
+        # In a real implementation, this would use actual stock data
+        n_simulations = 1000
+        n_assets = 2  # For AAPL and TSLA
+        
+        # Generate random weights
+        weights_list = []
+        for _ in range(n_simulations):
+            weights = np.random.random(n_assets)
+            weights = weights / np.sum(weights)  # Normalize to sum to 1
+            weights_list.append(weights)
+        
+        # Calculate Sharpe ratios (simplified)
+        # In reality, this would use actual returns and volatility
+        sharpe_ratios = []
+        for weights in weights_list:
+            # Simplified Sharpe calculation
+            expected_return = np.sum(weights * [0.08, 0.12])  # 8% and 12% expected returns
+            volatility = np.sum(weights * [0.15, 0.25])  # 15% and 25% volatility
+            sharpe = (expected_return - 0.02) / volatility if volatility > 0 else 0
+            sharpe_ratios.append(sharpe)
+        
+        # Find optimal weights
+        optimal_idx = np.argmax(sharpe_ratios)
+        optimal_weights = weights_list[optimal_idx]
+        optimal_sharpe = sharpe_ratios[optimal_idx]
+        
+        return optimal_weights, optimal_sharpe
+        
+    except Exception as e:
+        logger.error(f"Error in Monte Carlo optimization: {str(e)}")
+        return None, 0.0
 
 class PortfolioOptimizer:
     def __init__(self):
@@ -243,54 +290,253 @@ class PortfolioOptimizer:
             return {'error': 'Prediction failed'}
     
     def optimize_portfolio_ml(self, stocks: List[Dict], predictions: Dict, risk_profile: str, portfolio_value: float) -> Dict[str, float]:
-        """ML-based portfolio optimization using Modern Portfolio Theory"""
+        """Advanced ML-based portfolio optimization using Modern Portfolio Theory"""
         try:
+            logger.info(f"=== Starting portfolio optimization for risk profile: {risk_profile} ===")
+            
+            # Use Monte Carlo optimizer if available
+            if MONTE_CARLO_AVAILABLE and len(stocks) >= 2:
+                logger.info("Using Monte Carlo optimization")
+                return self._optimize_with_monte_carlo(stocks, risk_profile)
+            else:
+                logger.info("Using traditional MPT optimization")
+                return self._optimize_with_traditional_mpt(stocks, predictions, risk_profile, portfolio_value)
+            
+        except Exception as e:
+            logger.error(f"Error in advanced ML portfolio optimization: {str(e)}")
+            # Fallback to simple equal weight allocation
+            n_stocks = len(stocks)
+            equal_weight = 100 / n_stocks
+            return {stock['symbol']: round(equal_weight, 2) for stock in stocks}
+    
+    def _optimize_with_monte_carlo(self, stocks: List[Dict], risk_profile: str) -> Dict[str, float]:
+        """Optimize using Monte Carlo simulation"""
+        try:
+            symbols = [stock['symbol'] for stock in stocks]
+            
+            # Create Monte Carlo optimizer
+            mc_optimizer = MonteCarloOptimizer(risk_free_rate=0.02)
+            
+            # Run Monte Carlo simulation
+            efficient_frontier = mc_optimizer.run_monte_carlo_simulation(
+                symbols=symbols,
+                n_simulations=5000,  # Reduced for faster response
+                period='2y',
+                use_parallel=True
+            )
+            
+            # Get optimal weights
+            optimal_weights = efficient_frontier.max_sharpe_portfolio.weights
+            
+            # Convert to allocation percentages
+            allocations = {}
+            for i, symbol in enumerate(symbols):
+                allocations[symbol] = round(optimal_weights[i] * 100, 2)
+            
+            # Apply risk profile adjustments
+            if risk_profile == 'conservative':
+                allocations = self._adjust_for_conservative(allocations, symbols)
+            elif risk_profile == 'aggressive':
+                allocations = self._adjust_for_aggressive(allocations, symbols)
+            
+            # Ensure allocations sum to 100%
+            total_allocation = sum(allocations.values())
+            if total_allocation > 0:
+                for symbol in allocations:
+                    allocations[symbol] = round((allocations[symbol] / total_allocation) * 100, 2)
+            
+            logger.info(f"Monte Carlo optimization completed: {allocations}")
+            return allocations
+            
+        except Exception as e:
+            logger.error(f"Error in Monte Carlo optimization: {str(e)}")
+            # Fallback to equal weights
+            n_stocks = len(stocks)
+            equal_weight = 100 / n_stocks
+            return {stock['symbol']: round(equal_weight, 2) for stock in stocks}
+    
+    def _optimize_with_traditional_mpt(self, stocks: List[Dict], predictions: Dict, risk_profile: str, portfolio_value: float) -> Dict[str, float]:
+        """Traditional MPT optimization (existing logic)"""
+        try:
+            # Get historical data for all stocks
+            historical_data = {}
+            returns_data = {}
+            
+            for stock in stocks:
+                symbol = stock['symbol']
+                try:
+                    # Get 2 years of historical data
+                    ticker = yf.Ticker(symbol)
+                    hist = ticker.history(period='2y')
+                    
+                    if len(hist) > 60:  # At least 60 days of data
+                        # Calculate daily returns
+                        hist['Returns'] = hist['Close'].pct_change().dropna()
+                        historical_data[symbol] = hist
+                        returns_data[symbol] = hist['Returns'].values
+                    else:
+                        # Fallback to mock data if insufficient historical data
+                        returns_data[symbol] = np.random.normal(0.001, 0.02, 252)  # 252 trading days
+                except Exception as e:
+                    logger.error(f"Error getting historical data for {symbol}: {str(e)}")
+                    returns_data[symbol] = np.random.normal(0.001, 0.02, 252)
+            
             # Calculate expected returns from ML predictions
             expected_returns = {}
             for symbol, prediction in predictions.items():
                 if 'prediction_change' in prediction:
                     expected_returns[symbol] = prediction['prediction_change'] / 100  # Convert to decimal
             
-            # Risk profile adjustments
-            risk_multipliers = {
-                'conservative': 0.7,  # Reduce risk
-                'moderate': 1.0,      # Standard risk
-                'aggressive': 1.3     # Increase risk
-            }
-            risk_mult = risk_multipliers.get(risk_profile, 1.0)
+            # Calculate historical volatility (30-day rolling standard deviation)
+            volatilities = {}
+            for symbol in returns_data:
+                if len(returns_data[symbol]) >= 30:
+                    # 30-day rolling volatility
+                    rolling_vol = np.array([np.std(returns_data[symbol][max(0, i-30):i+1]) * np.sqrt(252) 
+                                          for i in range(len(returns_data[symbol]))])
+                    volatilities[symbol] = np.mean(rolling_vol[-30:])  # Average of last 30 days
+                else:
+                    volatilities[symbol] = np.std(returns_data[symbol]) * np.sqrt(252)
             
-            # Calculate optimal weights using ML predictions
-            total_weight = 0
-            allocations = {}
+            # Calculate correlation matrix
+            symbols = list(returns_data.keys())
+            n_stocks = len(symbols)
             
-            for stock in stocks:
-                symbol = stock['symbol']
-                if symbol in expected_returns:
-                    # Weight by expected return and confidence
-                    prediction = predictions[symbol]
-                    expected_return = expected_returns[symbol]
-                    confidence = prediction.get('confidence', 70) / 100
-                    
-                    # Calculate weight based on expected return and risk profile
-                    weight = expected_return * confidence * risk_mult
-                    allocations[symbol] = max(0, weight)  # No negative allocations
-                    total_weight += allocations[symbol]
-            
-            # Normalize allocations to sum to 100%
-            if total_weight > 0:
-                for symbol in allocations:
-                    allocations[symbol] = (allocations[symbol] / total_weight) * 100
+            if n_stocks > 1:
+                # Align return series to same length
+                min_length = min(len(returns_data[s]) for s in symbols)
+                aligned_returns = np.array([returns_data[s][-min_length:] for s in symbols])
+                correlation_matrix = np.corrcoef(aligned_returns)
             else:
-                # Equal weight if no positive weights
-                equal_weight = 100 / len(stocks)
-                for stock in stocks:
-                    allocations[stock['symbol']] = equal_weight
+                correlation_matrix = np.array([[1.0]])
+            
+            # Risk-free rate (approximate)
+            risk_free_rate = 0.02  # 2% annual
+            
+            # Risk profile adjustments
+            risk_adjustments = {
+                'conservative': {'vol_multiplier': 0.7, 'return_multiplier': 0.8, 'max_volatility': 0.15},
+                'moderate': {'vol_multiplier': 1.0, 'return_multiplier': 1.0, 'max_volatility': 0.25},
+                'aggressive': {'vol_multiplier': 1.3, 'return_multiplier': 1.2, 'max_volatility': 0.35}
+            }
+            
+            adjustment = risk_adjustments.get(risk_profile, risk_adjustments['moderate'])
+            
+            # Adjust volatilities and expected returns based on risk profile
+            adjusted_volatilities = {s: v * adjustment['vol_multiplier'] for s, v in volatilities.items()}
+            adjusted_expected_returns = {s: r * adjustment['return_multiplier'] for s, r in expected_returns.items()}
+            
+            # Risk profile specific allocation strategy
+            optimal_sharpe = 0.0  # Default value
+            
+            if risk_profile == 'conservative':
+                # Conservative: Allocate to lowest volatility stocks
+                sorted_stocks = sorted(symbols, key=lambda s: adjusted_volatilities.get(s, 0.2))
+                allocations = {}
+                if len(sorted_stocks) >= 2:
+                    # Allocate 70% to lowest volatility, 30% to second lowest
+                    allocations[sorted_stocks[0]] = 70.0
+                    allocations[sorted_stocks[1]] = 30.0
+                    for stock in sorted_stocks[2:]:
+                        allocations[stock] = 0.0
+                else:
+                    allocations[sorted_stocks[0]] = 100.0
+                
+            elif risk_profile == 'aggressive':
+                # Aggressive: Allocate to highest volatility stocks
+                sorted_stocks = sorted(symbols, key=lambda s: adjusted_volatilities.get(s, 0.2), reverse=True)
+                allocations = {}
+                if len(sorted_stocks) >= 2:
+                    # Allocate 70% to highest volatility, 30% to second highest
+                    allocations[sorted_stocks[0]] = 70.0
+                    allocations[sorted_stocks[1]] = 30.0
+                    for stock in sorted_stocks[2:]:
+                        allocations[stock] = 0.0
+                else:
+                    allocations[sorted_stocks[0]] = 100.0
+                    
+            else:  # moderate
+                # Moderate: Use Monte Carlo optimization
+                optimal_weights, optimal_sharpe = monte_carlo_optimization()
+                
+                # If Monte Carlo fails, use equal weight
+                if optimal_weights is None:
+                    optimal_weights = np.ones(n_stocks) / n_stocks
+                
+                # Convert to allocation percentages
+                allocations = {}
+                for i, symbol in enumerate(symbols):
+                    allocations[symbol] = round(optimal_weights[i] * 100, 2)
+                
+                # Ensure allocations sum to 100%
+                total_allocation = sum(allocations.values())
+                if total_allocation > 0:
+                    for symbol in allocations:
+                        allocations[symbol] = round((allocations[symbol] / total_allocation) * 100, 2)
+            
+            # Log optimization results
+            logger.info(f"Risk profile: {risk_profile}")
+            logger.info(f"Stock volatilities: {volatilities}")
+            logger.info(f"Expected returns: {expected_returns}")
+            logger.info(f"Adjusted volatilities: {adjusted_volatilities}")
+            logger.info(f"Adjusted expected returns: {adjusted_expected_returns}")
+            logger.info(f"Optimal Sharpe ratio: {optimal_sharpe:.4f}")
+            logger.info(f"Portfolio allocations: {allocations}")
             
             return allocations
             
         except Exception as e:
-            logger.error(f"Error in ML portfolio optimization: {str(e)}")
-            return self.optimize_portfolio_simple(stocks, risk_profile)
+            logger.error(f"Error in traditional MPT optimization: {str(e)}")
+            # Fallback to equal weights
+            n_stocks = len(stocks)
+            equal_weight = 100 / n_stocks
+            return {stock['symbol']: round(equal_weight, 2) for stock in stocks}
+    
+    def _adjust_for_conservative(self, allocations: Dict[str, float], symbols: List[str]) -> Dict[str, float]:
+        """Adjust allocations for conservative risk profile"""
+        # Get volatility rankings (simplified)
+        volatility_rankings = {
+            'AAPL': 1, 'MSFT': 2, 'GOOGL': 3, 'AMZN': 4, 'TSLA': 5
+        }
+        
+        # Sort by volatility (ascending)
+        sorted_stocks = sorted(symbols, key=lambda x: volatility_rankings.get(x, 3))
+        
+        # Conservative adjustment: favor low volatility stocks
+        adjusted_allocations = {}
+        for i, symbol in enumerate(sorted_stocks):
+            original_weight = allocations.get(symbol, 0)
+            
+            # Increase weight for low volatility stocks
+            if i < len(sorted_stocks) // 2:  # Bottom half (low volatility)
+                adjusted_allocations[symbol] = original_weight * 1.3
+            else:  # Top half (high volatility)
+                adjusted_allocations[symbol] = original_weight * 0.7
+        
+        return adjusted_allocations
+    
+    def _adjust_for_aggressive(self, allocations: Dict[str, float], symbols: List[str]) -> Dict[str, float]:
+        """Adjust allocations for aggressive risk profile"""
+        # Get volatility rankings (simplified)
+        volatility_rankings = {
+            'AAPL': 1, 'MSFT': 2, 'GOOGL': 3, 'AMZN': 4, 'TSLA': 5
+        }
+        
+        # Sort by volatility (descending)
+        sorted_stocks = sorted(symbols, key=lambda x: volatility_rankings.get(x, 3), reverse=True)
+        
+        # Aggressive adjustment: favor high volatility stocks
+        adjusted_allocations = {}
+        for i, symbol in enumerate(sorted_stocks):
+            original_weight = allocations.get(symbol, 0)
+            
+            # Increase weight for high volatility stocks
+            if i < len(sorted_stocks) // 2:  # Top half (high volatility)
+                adjusted_allocations[symbol] = original_weight * 1.3
+            else:  # Bottom half (low volatility)
+                adjusted_allocations[symbol] = original_weight * 0.7
+        
+        return adjusted_allocations
     
     def optimize_portfolio_simple(self, stocks: List[Dict], risk_profile: str) -> Dict[str, float]:
         """Simple portfolio optimization as fallback"""
@@ -345,6 +591,22 @@ class PortfolioOptimizer:
             # Get ML prediction
             prediction = self.predict_stock_price(symbol)
             
+            # Calculate realistic volatility based on historical data
+            hist_30d = ticker.history(period='30d')
+            if len(hist_30d) > 10:
+                returns = hist_30d['Close'].pct_change().dropna()
+                volatility = returns.std() * 100  # Convert to percentage
+            else:
+                # Fallback volatility based on stock characteristics
+                volatility_map = {
+                    'AAPL': 25.0,  # Lower volatility
+                    'MSFT': 28.0,  # Medium volatility  
+                    'GOOGL': 30,  # um-high volatility
+                    'AMZN': 35.0,  # High volatility
+                    'TSLA': 45,  # ry high volatility
+                }
+                volatility = volatility_map.get(symbol, 30)
+            
             return {
                 'symbol': symbol,
                 'name': info.get('longName', symbol),
@@ -355,7 +617,7 @@ class PortfolioOptimizer:
                 'market_cap': info.get('marketCap', 0),
                 'pe_ratio': info.get('trailingPE', 0),
                 'dividend_yield': info.get('dividendYield', 0) or 0,
-                'volatility': info.get('regularMarketPrice', 0) * 0.02,  # Estimate volatility
+                'volatility': round(volatility, 2),
                 'beta': info.get('beta', 1.0),
                 'ml_prediction': prediction
             }
@@ -546,7 +808,40 @@ def optimize_portfolio():
         if not stocks:
             return jsonify({'error': 'No stocks provided'}), 400
         
-        # Get ML predictions for all stocks
+        # Try Monte Carlo optimization first if available
+        if MONTE_CARLO_AVAILABLE:
+            try:
+                logger.info("Attempting Monte Carlo optimization...")
+                from monte_carlo_api import MonteCarloAPI
+                api = MonteCarloAPI()
+                
+                # Get stock symbols
+                symbols = [stock['symbol'] for stock in stocks]
+                
+                # Run Monte Carlo optimization
+                result = api.optimize_portfolio(
+                    symbols=symbols,
+                    n_simulations=1000,
+                    period='2y',
+                    risk_profile=risk_profile
+                )
+                
+                if result['success']:
+                    logger.info("✓ Monte Carlo optimization successful")
+                    return jsonify({
+                        'allocations': result['optimal_portfolio']['weights'],
+                        'ml_predictions': {},
+                        'optimization_method': 'Monte Carlo Simulation',
+                        'monte_carlo_results': result
+                    })
+                else:
+                    logger.warning(f"Monte Carlo optimization failed: {result['error']}")
+                    
+            except Exception as e:
+                logger.error(f"Error in Monte Carlo optimization: {str(e)}")
+                # Continue to fallback methods
+        
+        # Fallback to ML-based optimization
         stock_predictions = {}
         for stock in stocks:
             symbol = stock['symbol']
@@ -557,14 +852,16 @@ def optimize_portfolio():
         # ML-based optimization using Modern Portfolio Theory
         if len(stock_predictions) > 0:
             allocations = optimizer.optimize_portfolio_ml(stocks, stock_predictions, risk_profile, portfolio_value)
+            optimization_method = 'ML-based'
         else:
             # Fallback to simple optimization
             allocations = optimizer.optimize_portfolio_simple(stocks, risk_profile)
+            optimization_method = 'Simple'
         
         return jsonify({
             'allocations': allocations,
             'ml_predictions': stock_predictions,
-            'optimization_method': 'ML-based' if len(stock_predictions) > 0 else 'Simple'
+            'optimization_method': optimization_method
         })
     except Exception as e:
         logger.error(f"Error in portfolio optimization: {str(e)}")
@@ -586,36 +883,73 @@ def get_portfolio_performance():
         
         for month in months:
             month_data = {'month': month}
-            
-            # Generate individual stock performance based on real current prices
+            total_value = 0
+            portfolio_value = 10000  # Base portfolio value
+            # First, simulate prices for each stock
+            simulated_prices = {}
             for stock in stocks:
                 symbol = stock['symbol']
                 base_price = stock.get('current_price', 100)
-                # Simulate realistic price movement with some randomness
                 import random
-                random.seed(hash(symbol + month))  # Consistent randomness for same stock/month
-                change_percent = random.uniform(-0.12, 0.18)  # -12% to +18% for more realistic range
-                # Store the actual stock price (not portfolio contribution)
-                month_data[symbol] = round(base_price * (1 + change_percent), 2)
-            
-            # Calculate portfolio total based on allocations
-            total_value = 0
-            portfolio_value = 10000  # Base portfolio value
-            
+                random.seed(hash(symbol + month))
+                change_percent = random.uniform(-0.12, 0.18)
+                simulated_price = round(base_price * (1 + change_percent), 2)
+                simulated_prices[symbol] = simulated_price
+            # Now, calculate each stock's value in the portfolio
             for stock in stocks:
                 symbol = stock['symbol']
                 allocation = allocations.get(symbol, 0) / 100
-                # Calculate stock contribution to portfolio
-                stock_contribution = month_data[symbol] * allocation * portfolio_value / stock.get('current_price', 100)
-                total_value += stock_contribution
-            
+                base_price = stock.get('current_price', 100)
+                simulated_price = simulated_prices[symbol]
+                # Value of this stock's position in the portfolio
+                stock_value = allocation * portfolio_value * (simulated_price / base_price)
+                month_data[symbol] = round(stock_value, 2)
+                total_value += stock_value
             month_data['total'] = round(total_value, 2)
             performance_data.append(month_data)
-        
         return jsonify(performance_data)
     except Exception as e:
         logger.error(f"Error in portfolio performance: {str(e)}")
         return jsonify({'error': 'Failed to get performance data'}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+# Add Monte Carlo routes if available
+if MONTE_CARLO_AVAILABLE:
+    try:
+        logger.info("Attempting to add Monte Carlo routes...")
+        
+        # Use the create_monte_carlo_routes function from monte_carlo_api
+        from monte_carlo_api import create_monte_carlo_routes
+        create_monte_carlo_routes(app)
+        
+        logger.info("✓ Monte Carlo routes added successfully")
+        
+        # Debug: Print all registered routes
+        logger.info("Registered routes:")
+        for rule in app.url_map.iter_rules():
+            logger.info(f"  {rule.rule} -> {rule.endpoint}")
+            
+        # Check specifically for Monte Carlo routes
+        monte_carlo_routes = [
+            '/api/portfolio/monte-carlo/optimize',
+            '/api/portfolio/monte-carlo/efficient-frontier',
+            '/api/portfolio/monte-carlo/stats'
+        ]
+        
+        logger.info("Checking Monte Carlo routes:")
+        for route in monte_carlo_routes:
+            if route in [rule.rule for rule in app.url_map.iter_rules()]:
+                logger.info(f"✓ {route} is registered")
+            else:
+                logger.error(f"✗ {route} is NOT registered")
+            
+    except Exception as e:
+        logger.error(f"Error adding Monte Carlo routes: {str(e)}")
+        logger.error(f"Exception details: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+else:
+    logger.info("Monte Carlo optimizer not available - using traditional MPT only")
+
+if __name__ == "__main__":
+    # This is handled by start.py
+    pass 

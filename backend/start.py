@@ -19,19 +19,15 @@ if __name__ == '__main__':
     print("   - POST /api/portfolio/performance")
     print("\n📊 Backend is ready to handle heavy computations!")
     
-    # Configure Flask to use relative paths and reduce verbose output
-    os.environ['FLASK_ENV'] = 'development'
-    os.environ['FLASK_DEBUG'] = '1'
+    # Disable all reloader and debug features
+    os.environ['FLASK_ENV'] = 'production'
+    os.environ['FLASK_DEBUG'] = '0'
     
-    # Suppress werkzeug logging to avoid absolute path display
-    import logging
-    logging.getLogger('werkzeug').setLevel(logging.WARNING)
-    
-    # Run with reduced verbosity to avoid absolute path display
     app.run(
-        debug=True, 
-        host='0.0.0.0', 
+        debug=False,
+        host='0.0.0.0',
         port=5000,
-        use_reloader=True,
-        threaded=True
+        use_reloader=False,
+        threaded=True,
+        processes=1
     ) 

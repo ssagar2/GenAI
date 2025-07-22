@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle, Info, Zap } from 'lucide-react';
 import apiService from '../services/apiService';
 
-const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations, onOptimize }) => {
+const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations }) => {
   const riskProfiles = [
     {
       id: 'conservative',
@@ -32,68 +32,6 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
       expectedReturn: '8-12%'
     }
   ];
-
-  const [mlResults, setMlResults] = useState(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optError, setOptError] = useState(null);
-
-  // Clear ML results when risk profile changes
-  useEffect(() => {
-    setMlResults(null);
-    setOptError(null);
-  }, [riskProfile]);
-
-  // Clear ML results when stocks change
-  useEffect(() => {
-    setMlResults(null);
-    setOptError(null);
-    setIsOptimizing(false); // Reset optimization state
-  }, [selectedStocks]);
-
-  const resetOptimizationState = () => {
-    setIsOptimizing(false);
-    setOptError(null);
-    setMlResults(null);
-  };
-
-  const handleOptimize = async () => {
-    console.log('Button clicked! Current state:', { isOptimizing, selectedStocks: selectedStocks.length });
-    
-    // Prevent multiple simultaneous requests
-    if (isOptimizing) {
-      console.log('Already optimizing, ignoring click');
-      return;
-    }
-    
-    console.log('Starting optimization process...');
-    
-    // Reset state before starting
-    resetOptimizationState();
-    setIsOptimizing(true);
-    
-    // Add timeout to prevent button from getting stuck
-    const timeoutId = setTimeout(() => {
-      console.log('Request timed out');
-      setIsOptimizing(false);
-      setOptError('Request timed out. Please try again.');
-    }, 30000); // 30 second timeout
-    
-    try {
-      console.log('Starting optimization for stocks:', selectedStocks.map(s => s.symbol));
-      const { allocations: newAllocations, mlPredictions, optimizationMethod } = await apiService.optimizePortfolio(selectedStocks, riskProfile);
-      clearTimeout(timeoutId);
-      console.log('Optimization successful:', newAllocations);
-      onOptimize(newAllocations);
-      setMlResults({ mlPredictions, optimizationMethod });
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.error('Optimization error:', err);
-      setOptError('Failed to optimize portfolio. Please try again.');
-    } finally {
-      console.log('Setting isOptimizing to false');
-      setIsOptimizing(false);
-    }
-  };
 
   const calculatePortfolioRisk = () => {
     if (selectedStocks.length === 0) return { risk: 'Low', score: 0, diversification: 'Poor' };
@@ -178,73 +116,6 @@ const RiskAssessment = ({ riskProfile, onRiskChange, selectedStocks, allocations
           })}
         </div>
       </div>
-
-      {/* Optimize Button */}
-      <div className="pt-2 space-y-2">
-        <button
-          onClick={handleOptimize}
-          disabled={selectedStocks.length === 0 || isOptimizing}
-          className={`px-4 py-2 rounded-md font-semibold transition-all duration-200 ${
-            selectedStocks.length === 0 || isOptimizing
-              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-          }`}
-        >
-          {isOptimizing ? (
-            <span className="flex items-center">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Optimizing...
-            </span>
-          ) : (
-            'Optimize Portfolio'
-          )}
-        </button>
-        
-        {/* Debug button to test state */}
-        <button
-          onClick={() => {
-            console.log('Debug: Current state:', { isOptimizing, selectedStocks: selectedStocks.length, optError });
-            setOptError(null);
-            setIsOptimizing(false);
-            setMlResults(null);
-          }}
-          className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded"
-        >
-          Reset State (Debug)
-        </button>
-        
-        {optError && <div className="text-red-500 text-xs mt-2">{optError}</div>}
-        {selectedStocks.length === 0 && (
-          <div className="text-gray-500 text-xs mt-2">Select stocks to enable optimization</div>
-        )}
-      </div>
-
-      {/* ML Results */}
-      {mlResults && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-          <div className="font-semibold text-blue-700 mb-2">Optimization Method: {mlResults.optimizationMethod}</div>
-          {mlResults.mlPredictions && Object.keys(mlResults.mlPredictions).length > 0 && (
-            <div>
-              <div className="font-medium text-gray-700 mb-1">ML Predictions:</div>
-              <ul className="space-y-1">
-                {selectedStocks.map(stock => {
-                  const pred = mlResults.mlPredictions[stock.symbol];
-                  return pred ? (
-                    <li key={stock.symbol} className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-gray-800">{stock.symbol}</span>
-                      <span className="text-gray-600">Exp. Return: <span className="font-bold">{pred.prediction_change ? pred.prediction_change.toFixed(2) : 'N/A'}%</span></span>
-                      <span className="text-gray-600">Confidence: <span className="font-bold">{pred.confidence ? pred.confidence.toFixed(1) : 'N/A'}%</span></span>
-                    </li>
-                  ) : null;
-                })}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Portfolio Risk Analysis */}
       {selectedStocks.length > 0 && (
